@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { init as initApi, Participant, Participants } from "./lib/api.ts";
+  import { init as initApi, Participant, Participants } from "$lib/api.ts";
 
   let participants: Participants | undefined;
   let participantIds: string[] = [];
@@ -57,5 +57,4 @@
 </main>
 
 <style>
-
 </style>

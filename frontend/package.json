@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 3002",
+    "dev": "vite dev --port 3002",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json"
@@ -18,7 +18,9 @@
     "svelte-check": "^3.3.1",
     "tslib": "^2.5.0",
     "typescript": "^5.0.2",
-    "vite": "^4.3.9"
+    "vite": "^4.3.9",
+    "vite-plugin-string-replace": "^1.1.2",
+    "vite-plugin-svelte-svg": "^2.3.0"
   },
   "dependencies": {
     "mediasoup-client": "^3.6.87"

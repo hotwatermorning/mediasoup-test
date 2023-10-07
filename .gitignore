@@ -1,0 +1,3 @@
+# git の pre-push フックで使用するディレクトリ
+.wt-pre-push-test
+.DS_Store

@@ -22,6 +22,7 @@ interface ServerInit {
 interface ServerProducerAdded {
 	action: 'ProducerAdded';
 	participantId: ParticipantId;
+	name: string;
 	producerId: ProducerId;
 }
 
@@ -62,6 +63,7 @@ type ServerMessage =
 
 interface ClientInit {
 	action: 'Init';
+	name: string;
 	rtpCapabilities: RtpCapabilities;
 }
 
@@ -101,14 +103,19 @@ type ClientMessage =
 
 export class Participant
 {
+	private _name = "";
 	private readonly mediaStream = new MediaStream();
   public readonly id: ParticipantId;
 
 	constructor(
-		public readonly id_: ParticipantId)
+		public readonly id_: ParticipantId
+	)
 	{
     this.id = id_;
   }
+
+	public get name() { return this._name; }
+	public set name(name: string) { this._name = name; }
 
 	public addTrack(track: MediaStreamTrack): void
 	{
@@ -144,12 +151,15 @@ export class Participants
 
 	public addTrack(
 		participantId: ParticipantId,
+		name: string,
 		producerId: ProducerId,
 		track: MediaStreamTrack,
   ): void
 	{
 		this.producerIdToTrack.set(producerId, track);
-		this.getOrCreateParticipant(participantId).addTrack(track);
+		const p = this.getOrCreateParticipant(participantId);
+		p.name = name;
+		p.addTrack(track);
     this.updateTrigger();
 	}
 
@@ -159,17 +169,16 @@ export class Participants
 
 		if (track)
 		{
-			const participant = this.getOrCreateParticipant(participantId);
-
-			participant.deleteTrack(track);
-			if (!participant.hasTracks())
-			{
-				this.participants.delete(participantId);
+			const participant = this.getParticipant(participantId);
+			if (participant !== undefined) {
+				participant.deleteTrack(track);
+				if (!participant.hasTracks())
+				{
+					this.participants.delete(participantId);
+				}
 			}
-      this.updateTrigger();
 		}
-
-		// TODO
+		this.updateTrigger();
 	}
 
 	getOrCreateParticipant(id: ParticipantId): Participant
@@ -185,9 +194,19 @@ export class Participants
 		return participant;
 	}
 
-  getParticipantIds(): string[]
+	getParticipant(id: ParticipantId): Participant | undefined
+	{
+		return this.participants.get(id);
+	}
+
+  getParticipants(): {id: string, name: string}[]
   {
-    return [...this.participants.keys()];
+    return [...this.participants.entries()].map(([id, data]) => {
+			return {
+				id,
+				name: data.name,
+			};
+		});
   }
 
   bind(id: string, video: HTMLVideoElement): void
@@ -212,6 +231,7 @@ const getIceServers = ():RTCIceServer[] => {
 let shouldUseTurnServer: boolean = false;
 
 export async function init(
+	name: string,
   participants: Participants,
   sendPreview: HTMLVideoElement,
 )
@@ -244,6 +264,7 @@ export async function init(
 		switch (message.action)
 		{
 			case 'Init': {
+				console.log("on init");
 				if (!roomId)
 				{
 					const url = new URL(location.href);
@@ -260,6 +281,7 @@ export async function init(
 				// Send client-side initialization message back right away
 				send({
 					action          : 'Init',
+					name            : name,
 					rtpCapabilities : device.rtpCapabilities
 				});
 
@@ -389,7 +411,7 @@ export async function init(
 						});
 
 						participants
-							.addTrack(message.participantId, message.producerId, consumer.track);
+							.addTrack(message.participantId, message.name, message.producerId, consumer.track);
 						resolve(undefined);
 					});
 				});

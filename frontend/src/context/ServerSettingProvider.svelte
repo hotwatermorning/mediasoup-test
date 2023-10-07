@@ -46,7 +46,7 @@
 
   const KEY = "server-setting";
   export type ServerSettingContext = ReturnType<typeof createContext>;
-  export const getServerSettingContextContext = () => getContext<ServerSettingContext>(KEY);
+  export const getServerSettingContext = () => getContext<ServerSettingContext>(KEY);
 </script>
 
 <script lang="ts">

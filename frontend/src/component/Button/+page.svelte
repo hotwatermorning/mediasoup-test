@@ -1,8 +1,9 @@
 <script lang="ts">
   export let primary = false;
+  export let disabled = false;
 </script>
 
-<button class={`button ${primary ? "primary" : ''}`} on:click>
+<button class={`button ${primary ? "primary" : ''}`} on:click {disabled}>
   <slot />
 </button>
 

@@ -101,6 +101,11 @@ type ClientMessage =
 	ClientConsume |
 	ClientConsumerResume;
 
+export type ParticipantInfo = {
+	id: string;
+	name: string;
+};
+
 export class Participant
 {
 	private _name = "";
@@ -138,11 +143,13 @@ export class Participant
   }
 }
 
-export class Participants
+export class VideoChatManager
 {
 	private participants = new Map<ParticipantId, Participant>();
 	private producerIdToTrack = new Map<ProducerId, MediaStreamTrack>();
   private updateTrigger: () => void;
+	private _isCameraEnabled = false;
+	private _isMicEnabled = false;
 
   public constructor(updateTriggerFunc: () => void)
   {
@@ -199,7 +206,7 @@ export class Participants
 		return this.participants.get(id);
 	}
 
-  getParticipants(): {id: string, name: string}[]
+  getParticipants(): ParticipantInfo[]
   {
     return [...this.participants.entries()].map(([id, data]) => {
 			return {
@@ -218,6 +225,22 @@ export class Participants
 
     p.bind(video);
   }
+
+  isCameraEnabled(): boolean {
+		return this._isCameraEnabled;
+	}
+
+	setCarameraEnabled(flag: boolean) {
+		this._isCameraEnabled = flag;
+	}
+
+	isMicEnabled(): boolean {
+		return this._isMicEnabled;
+	}
+
+	setMicEnabled(flag: boolean) {
+		this._isMicEnabled = flag;
+	}
 }
 
 const getIceServers = ():RTCIceServer[] => {
@@ -232,7 +255,7 @@ let shouldUseTurnServer: boolean = false;
 
 export async function init(
 	name: string,
-  participants: Participants,
+  mgr: VideoChatManager,
   sendPreview: HTMLVideoElement,
 )
 {
@@ -410,7 +433,7 @@ export async function init(
 							id     : consumer.id as ConsumerId
 						});
 
-						participants
+						mgr
 							.addTrack(message.participantId, message.name, message.producerId, consumer.track);
 						resolve(undefined);
 					});
@@ -418,7 +441,7 @@ export async function init(
 				break;
 			}
 			case 'ProducerRemoved': {
-				participants
+				mgr
 					.deleteTrack(message.participantId, message.producerId);
 
 				break;

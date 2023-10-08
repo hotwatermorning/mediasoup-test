@@ -20,6 +20,7 @@ if [ ! -f .trigger ]; then
   touch .trigger
 fi
 
+cargo build
 touch .env.local
 
 cargo watch -x fmt -x build -s "touch .trigger" &

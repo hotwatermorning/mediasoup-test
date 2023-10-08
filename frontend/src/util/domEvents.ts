@@ -1,0 +1,1 @@
+export type DOMEvent<Event, Target> = Event & { currentTarget: Target };

@@ -1,20 +1,14 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { Button } from "~/component";
-  import { getNameContext } from "~/context/NameProvider.svelte";
 
-  let name = "";
   let roomId = "";
 
-  const { nameStore } = getNameContext();
-
   const onJoinNewRoom = () => {
-    nameStore.set(name);
     goto(`/rooms`);
   };
 
   const onJoinTargetRoom = () => {
-    nameStore.set(name);
     goto(`/rooms?roomId=${roomId}`);
   };
 </script>

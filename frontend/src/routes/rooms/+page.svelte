@@ -1,10 +1,10 @@
 <script lang="ts">
   import { Dialog, Header } from "~/component";
-  import { getNameContext } from "~/context/NameProvider.svelte";
-  import SetNameDialog from "./SetNameDialog.svelte";
+  import { getClientSettingContext } from "~/context/ClientSettingProvider.svelte";
+  import SetNameDialog from "./JoinSettingDialog.svelte";
   import { beforeNavigate } from "$app/navigation";
   import VideoList from "./VideoList.svelte";
-  const { nameStore } = getNameContext();
+  const { clientSettingStore, isValidSetting } = getClientSettingContext();
 </script>
 
 <!--
@@ -16,7 +16,7 @@
 <main>
   <Header />
   <div id="container">
-    {#if $nameStore === ""}
+    {#if isValidSetting($clientSettingStore) === false}
       <Dialog
         onClose={() => {}}
         showCloseButton={false}
@@ -25,7 +25,7 @@
         <SetNameDialog />
       </Dialog>
     {:else}
-      <VideoList name={$nameStore} />
+      <VideoList />
     {/if}
   </div>
 </main>

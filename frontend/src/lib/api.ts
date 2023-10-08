@@ -147,14 +147,19 @@ export class VideoChatManager
 {
 	private participants = new Map<ParticipantId, Participant>();
 	private producerIdToTrack = new Map<ProducerId, MediaStreamTrack>();
+	private selfTracks: MediaStreamTrack[] = [];
   private updateTrigger: () => void;
-	private _isCameraEnabled = false;
-	private _isMicEnabled = false;
+	private _isCameraEnabled = true;
+	private _isMicEnabled = true;
 
   public constructor(updateTriggerFunc: () => void)
   {
     this.updateTrigger = updateTriggerFunc;
   }
+
+	public addSelfTrack(track: MediaStreamTrack): void {
+		this.selfTracks.push(track);
+	}
 
 	public addTrack(
 		participantId: ParticipantId,
@@ -232,6 +237,11 @@ export class VideoChatManager
 
 	setCarameraEnabled(flag: boolean) {
 		this._isCameraEnabled = flag;
+		for(const t of this.selfTracks) {
+			if(t.kind === "video") {
+				t.enabled = flag;
+			}
+		}
 	}
 
 	isMicEnabled(): boolean {
@@ -240,6 +250,11 @@ export class VideoChatManager
 
 	setMicEnabled(flag: boolean) {
 		this._isMicEnabled = flag;
+		for(const t of this.selfTracks) {
+			if(t.kind === "audio") {
+				t.enabled = flag;
+			}
+		}
 	}
 }
 
@@ -256,6 +271,8 @@ let shouldUseTurnServer: boolean = false;
 export async function init(
 	name: string,
   mgr: VideoChatManager,
+	micId: string,
+	cameraId: string,
   sendPreview: HTMLVideoElement,
 )
 {
@@ -293,7 +310,7 @@ export async function init(
 					const url = new URL(location.href);
 
 					url.searchParams.set('roomId', message.roomId);
-					history.pushState({}, '', url.toString());
+					history.replaceState({}, '', url.toString());
 				}
 				// It is expected that server will send initialization message right after
 				// WebSocket connection is established
@@ -354,18 +371,8 @@ export async function init(
 				// to do this separately so that audio-only and video-only cases are
 				// handled nicely instead of failing completely
 				const mediaStream = await navigator.mediaDevices.getUserMedia({
-					audio : true,
-					video : {
-						width : {
-							ideal : 1280
-						},
-						height : {
-							ideal : 720
-						},
-						frameRate : {
-							ideal : 60
-						}
-					}
+					audio : micId ? { deviceId: micId } : false,
+					video : cameraId ? { deviceId: cameraId } : false,
 				});
 
 				sendPreview.srcObject = mediaStream;
@@ -376,6 +383,7 @@ export async function init(
 					const producer = await producerTransport.produce({ track });
 
 					console.log(`${track.kind} producer created:`, producer);
+					mgr.addSelfTrack(track);
 				}
 
 				// Producer transport will be needed to receive produced tracks

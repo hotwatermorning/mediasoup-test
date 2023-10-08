@@ -4,8 +4,11 @@
   import CameraOff from "~/asset/CameraOff.svg?component";
   import MicOn from "~/asset/MicOn.svg?component";
   import MicOff from "~/asset/MicOff.svg?component";
+  import { getClientSettingContext } from "~/context/ClientSettingProvider.svelte";
 
-  export let name: string;
+  const { clientSettingStore } = getClientSettingContext();
+
+  export let name = $clientSettingStore.name;
   let mgr: VideoChatManager | undefined = undefined;
   let isCameraEnabled = false;
   let isMicEnabled = false;
@@ -25,7 +28,7 @@
     };
 
     (async () => {
-      await init(name, mgr, node);
+      await init(name, mgr, $clientSettingStore.micId, $clientSettingStore.cameraId, node);
     })();
 
     return {

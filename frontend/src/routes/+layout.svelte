@@ -1,5 +1,5 @@
 <script lang="ts">
-  import NameProvider from "~/context/NameProvider.svelte";
+  import NameProvider from "~/context/ClientSettingProvider.svelte";
   import ServerSettingProvider from "~/context/ServerSettingProvider.svelte";
 </script>
 

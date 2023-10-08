@@ -20,7 +20,7 @@
   let micList: Device[] = [];
   let selectedCameraId: string;
   let selectedMicId: string;
-  let previewVideoElement: HTMLVideoElement;
+  let previewVideoElement: HTMLVideoElement | undefined = undefined;;
 
   let name = "";
   $: count = countGrapheme(name);
@@ -60,7 +60,6 @@
     }
 
     console.log(`onChangeMic: ${deviceId}`);
-
     selectedMicId = deviceId;
   };
 
@@ -70,6 +69,7 @@
     }
 
     console.log(`onChangeCamera: ${deviceId}`);
+    selectedCameraId = deviceId;
 
     const media = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -77,7 +77,10 @@
       }
     });
 
-    selectedCameraId = deviceId;
+    if(previewVideoElement === undefined) {
+      return;
+    }
+
     previewVideoElement.srcObject = media;
     previewVideoElement.autoplay = true;
   };
@@ -86,7 +89,10 @@
     setCameraId(selectedCameraId);
     setMicId(selectedMicId);
     setName(name);
-    previewVideoElement.srcObject = null;
+
+    if(previewVideoElement) {
+      previewVideoElement.srcObject = null;
+    }
   };
 </script>
 

@@ -5,6 +5,7 @@
   import MicOn from "~/asset/MicOn.svg?component";
   import MicOff from "~/asset/MicOff.svg?component";
   import { getClientSettingContext } from "~/context/ClientSettingProvider.svelte";
+  import { goto } from "$app/navigation";
 
   const { clientSettingStore } = getClientSettingContext();
 
@@ -28,7 +29,16 @@
     };
 
     (async () => {
-      await init(name, mgr, $clientSettingStore.micId, $clientSettingStore.cameraId, node);
+      await init(
+        name,
+        mgr,
+        $clientSettingStore.micId,
+        $clientSettingStore.cameraId,
+        node,
+        (url) => {
+          goto(url, { replaceState: true });
+        }
+      );
     })();
 
     return {
@@ -39,7 +49,7 @@
         console.log("updated");
       },
     };
-  }
+  };
 
   const onBind = (node: HTMLVideoElement, id: string) => {
     if (!mgr) {
@@ -51,7 +61,7 @@
     };
 
     mgr.bind(id, node);
-  }
+  };
 
   const onInitSelfVideo_ = (node: HTMLVideoElement) => {
     console.log("onInitSelfVideo_");
@@ -66,7 +76,9 @@
   };
 
   const onChangeCameraStatus = () => {
-    if(!mgr) { return; }
+    if (!mgr) {
+      return;
+    }
 
     mgr.setCarameraEnabled(mgr.isCameraEnabled() === false);
     isCameraEnabled = mgr.isCameraEnabled();
@@ -74,50 +86,80 @@
   };
 
   const onChangeMicStatus = () => {
-    if(!mgr) { return; }
+    if (!mgr) {
+      return;
+    }
 
     mgr.setMicEnabled(mgr.isMicEnabled() === false);
     isMicEnabled = mgr.isMicEnabled();
     console.log("onChangeMicStatus");
   };
 
+  const getVideoLayoutStyle = (numParticipants: number) => {
+    if(numParticipants + 1 <= 1) {
+      return "video-layout-for-1";
+    } else if(numParticipants + 1 <= 4) {
+      return "video-layout-for-4";
+    } else if(numParticipants + 1 <= 9) {
+      return "video-layout-for-9";
+    } else if(numParticipants + 1 <= 16) {
+      return "video-layout-for-16";
+    } else {
+      return "video-layout-for-many";
+    }
+  };
+
 </script>
 
 <div class="layout">
-  <div class="video-wrapper">
-    <figure>
-      <figcaption>You ({name})</figcaption>
-      <div class="layout-video-controls">
-        <video id="preview-send" muted use:onInitSelfVideo_ />
-        <div class="overlay">
-          <div class="video-controls">
-            <button class="control-button" on:click={onChangeMicStatus}>
-              {#if isMicEnabled}
-                <MicOn />
-              {:else}
-                <MicOff />
-              {/if}
-            </button>
-            <button class="control-button" on:click={onChangeCameraStatus}>
-              {#if isCameraEnabled}
-                <CameraOn />
-              {:else}
-                <CameraOff />
-              {/if}
-            </button>
+  <div class={getVideoLayoutStyle(participants.length)}>
+    <div class="video-wrapper">
+      <div class="dummy">
+        <figure>
+          <figcaption>You ({name})</figcaption>
+          <div class="layout-video-controls">
+            <video
+              id="preview-send"
+              muted
+              use:onInitSelfVideo_
+              poster={"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg?x11217"}
+            />
+            <div class="overlay">
+              <div class="video-controls">
+                <button class="control-button" on:click={onChangeMicStatus}>
+                  {#if isMicEnabled}
+                    <MicOn />
+                  {:else}
+                    <MicOff />
+                  {/if}
+                </button>
+                <button class="control-button" on:click={onChangeCameraStatus}>
+                  {#if isCameraEnabled}
+                    <CameraOn />
+                  {:else}
+                    <CameraOff />
+                  {/if}
+                </button>
+              </div>
+            </div>
           </div>
+        </figure>
+      </div>
+    </div>
+    {#each participants as { id, name } (id)}
+      <div class="video-wrapper">
+        <div class="dummy">
+          <figure>
+            <figcaption>{name}</figcaption>
+            <video
+              use:onBindParticipantElement_={id}
+              poster={"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg?x11217"}
+            />
+          </figure>
         </div>
       </div>
-    </figure>
+    {/each}
   </div>
-  {#each participants as { id, name } (id)}
-    <div class="video-wrapper">
-      <figure>
-        <figcaption>{name}</figcaption>
-        <video muted use:onBindParticipantElement_={id} />
-      </figure>
-    </div>
-  {/each}
 </div>
 
 <style>
@@ -125,6 +167,49 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .video-layout-for-1 {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    gap: 10px;
+    height: 100%;
+    width: 100%;
+  }
+
+  .video-layout-for-4 {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .video-layout-for-9 {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .video-layout-for-16 {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+
+  .video-layout-for-many {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 10px;
   }
 
   figure {
@@ -137,6 +222,10 @@
     max-width: 1200px;
     width: 100%;
     height: auto;
+  }
+
+  .dummy {
+    container: clayout / inline-size;
   }
 
   .layout-video-controls {
@@ -163,9 +252,7 @@
     left: 0px;
     width: 100%;
     height: 100%;
-    transition:
-      background-color 0.1s ease
-      visibility 0.1 ease;
+    transition: background-color 0.1s ease visibility 0.1 ease;
 
     &:hover {
       background-color: #00000040;
@@ -178,7 +265,13 @@
     align-items: center;
     justify-content: center;
     gap: 60px;
-    margin-top: 0 auto;
+  }
+
+  @container (max-width: 500px) {
+    .video-controls {
+      gap: 45px;
+      height: 75px;
+    }
   }
 
   .video-controls > button {
@@ -196,17 +289,43 @@
     transition: border 0.2s ease;
 
     &:hover {
-      border: #FFFFFF80 6px solid;
+      border: #ffffff80 6px solid;
+    }
+  }
+
+  @container (max-width: 500px) {
+    .video-controls > button {
+      height: 45px;
+      width: 45px;
+      border-radius: 45px;
     }
   }
 
   video {
     height: 100%;
     width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+
+    &:disabled {
+      visibility: hidden;
+    }
   }
 
   figcaption {
     color: white;
     font-size: 1.5rem;
+    text-align: center;
+    line-height: normal;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  @container (max-width: 500px) {
+    figcaption {
+      font-size: 0.8rem
+    }
   }
 </style>

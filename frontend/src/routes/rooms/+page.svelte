@@ -7,12 +7,6 @@
   const { clientSettingStore, isValidSetting } = getClientSettingContext();
 </script>
 
-<!--
-  # レイアウトの方針
-
-  平方数のときは、その通りに並べる。
-  それ以外のときはそれより小さい
--->
 <main>
   <Header />
   <div id="container">
@@ -31,6 +25,10 @@
 </main>
 
 <style>
+  main {
+    min-width: 500px;
+  }
+
   #container {
     padding: 20px;
     display: flex;

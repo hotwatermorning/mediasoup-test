@@ -19,7 +19,6 @@
     margin: 0px;
     height: 100vh;
     width: 100vw;
-    overflow-x: hidden;
     font-feature-settings: "clig" off, "liga" off;
     font-family: "Noto Sans JP", Roboto, "ヒラギノ角ゴシック Pro",
       "Hiragino Kaku Gothic Pro", Arial, メイリオ, Meiryo, Osaka,

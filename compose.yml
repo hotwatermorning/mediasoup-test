@@ -4,11 +4,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "10010:10010"
+    network_mode: "host"
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "10020:3000"
+    network_mode: "host"

@@ -29,6 +29,16 @@
 
   onMount(async () => {
     loadingGuard(async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true,
+        });
+      } catch(e) {
+        console.log(`#### Failed to get media devices: ${e}`);
+        return;
+      }
+
       const devices = await navigator.mediaDevices.enumerateDevices();
 
       for(const d of devices) {

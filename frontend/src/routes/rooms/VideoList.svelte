@@ -120,8 +120,6 @@
 </script>
 
 <div class="layout">
-  <button on:click={startRecording}>録画開始</button>
-  <button on:click={stopRecording}>録画停止</button>
   <div class={getVideoLayoutStyle(participants.length)}>
     <div class="video-wrapper">
       <div class="dummy">

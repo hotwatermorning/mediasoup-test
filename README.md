@@ -2,18 +2,12 @@
 
 ## How to setup
 
+* 3000/tcp, 3010/tcp, 50000-51000/tcp, 50000-51000/udp ポートを開ける
+* バックエンドのサーバーを公開するときの WebSocket URL を ./frontend/.env.docker に設定する
+* サーバー IP アドレスを backend/src/participant.rs の WebRtcTransportOptions に設定する
+
+以上の設定を行って docker コンテナを起動する。
+
 ```sh
-cd webrtc-test
-git submodule update --init --recursive
-
-# デプロイ環境に合わせて coturn の設定を更新する
-cd turn-server
-cp turnserver.conf.example turnserver.conf
-vim turnserver.conf
-
-# 必要に応じて TLS 証明書を指定する
-export COTURN_CERT_PEM=/path/to/cert.pem
-export COTURN_PKEY_PEM=/path/to/pkey.pem
-
-docker-compose up -d --build
+docker-compose up -d
 ```

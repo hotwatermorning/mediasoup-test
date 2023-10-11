@@ -24,6 +24,9 @@
       }
     });
 
+    isCameraEnabled = mgr.isCameraEnabled();
+    isMicEnabled = mgr.isMicEnabled();
+
     node.onloadedmetadata = () => {
       node.play();
     };

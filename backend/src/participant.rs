@@ -68,10 +68,13 @@ impl ParticipantConnection {
         // We know that for videoroom example we'll need 2 transports, so we can create both
         // right away. This may not be the case for real-world applications or you may create
         // this at a different time and/or in different order.
-        let transport_options = WebRtcTransportOptions::new(TransportListenIps::new(ListenIp {
-            ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            announced_ip: Some(IpAddr::V4(Ipv4Addr::new(133, 242, 144, 214))),
-        }));
+        let mut transport_options =
+            WebRtcTransportOptions::new(TransportListenIps::new(ListenIp {
+                ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+                announced_ip: Some(IpAddr::V4(Ipv4Addr::new(133, 242, 144, 214))),
+            }));
+        transport_options.enable_tcp = true;
+        transport_options.prefer_udp = true;
         let producer_transport = room
             .router()
             .create_webrtc_transport(transport_options.clone())

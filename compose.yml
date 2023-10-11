@@ -4,9 +4,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    network_mode: "host"
+    network_mode: host
+    restart: always
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    network_mode: "host"
+    network_mode: host
+    restart: always

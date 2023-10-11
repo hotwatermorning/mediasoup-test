@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::num::{NonZeroU32, NonZeroU8};
-use std::ops::DerefMut;
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
 
@@ -93,6 +92,7 @@ impl Room {
         let worker = worker_manager
             .create_worker({
                 let mut settings = WorkerSettings::default();
+                settings.rtc_ports_range = 50000..=51000;
                 settings.log_level = WorkerLogLevel::Debug;
                 settings.log_tags = vec![
                     WorkerLogTag::Info,

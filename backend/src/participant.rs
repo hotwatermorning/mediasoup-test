@@ -69,8 +69,8 @@ impl ParticipantConnection {
         // right away. This may not be the case for real-world applications or you may create
         // this at a different time and/or in different order.
         let transport_options = WebRtcTransportOptions::new(TransportListenIps::new(ListenIp {
-            ip: IpAddr::V4(Ipv4Addr::LOCALHOST),
-            announced_ip: get_env("ANNOUNCED_IP"),
+            ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+            announced_ip: Some(IpAddr::V4(Ipv4Addr::new(133, 242, 144, 214))),
         }));
         let producer_transport = room
             .router()

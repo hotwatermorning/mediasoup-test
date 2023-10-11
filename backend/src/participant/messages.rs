@@ -80,21 +80,31 @@ pub enum ClientMessage {
     /// Request to connect producer transport with client-side DTLS parameters
     #[serde(rename_all = "camelCase")]
     ConnectProducerTransport { dtls_parameters: DtlsParameters },
+
     /// Request to produce a new audio or video track with specified RTP parameters
     #[serde(rename_all = "camelCase")]
     Produce {
         kind: MediaKind,
         rtp_parameters: RtpParameters,
     },
+
     /// Request to connect consumer transport with client-side DTLS parameters
     #[serde(rename_all = "camelCase")]
     ConnectConsumerTransport { dtls_parameters: DtlsParameters },
+
     /// Request to consume specified producer
     #[serde(rename_all = "camelCase")]
     Consume { producer_id: ProducerId },
+
     /// Request to resume consumer that was previously created
     #[serde(rename_all = "camelCase")]
     ConsumerResume { id: ConsumerId },
+
+    #[serde(rename_all = "camelCase")]
+    StartRecording { output_name: String },
+
+    #[serde(rename_all = "camelCase")]
+    StopRecording {},
 }
 
 /// Internal actor messages for convenience

@@ -1,5 +1,5 @@
-use crate::get_env;
 use crate::room::Room;
+use crate::util::get_env;
 use actix::prelude::*;
 use actix_web_actors::ws;
 use event_listener_primitives::HandlerId;
@@ -383,6 +383,46 @@ impl Handler<ClientMessage> for ParticipantConnection {
                         }
                     });
                 }
+            }
+            ClientMessage::StartRecording { output_name } => {
+                let participant_id = self.id;
+                let mut room = self.room.clone();
+                actix::spawn(async move {
+                    match room.start_recording(&participant_id, &output_name).await {
+                        Ok(_) => {
+                            println!(
+                                "[participant_id {}] Successfully started recording",
+                                participant_id,
+                            );
+                        }
+                        Err(error) => {
+                            println!(
+                                "[participant_id {}] Failed to start recording {}",
+                                participant_id, error,
+                            );
+                        }
+                    }
+                });
+            }
+            ClientMessage::StopRecording {} => {
+                let participant_id = self.id;
+                let mut room = self.room.clone();
+                actix::spawn(async move {
+                    match room.stop_recording().await {
+                        Ok(_) => {
+                            println!(
+                                "[participant_id {}] Successfully stopped recording",
+                                participant_id,
+                            );
+                        }
+                        Err(error) => {
+                            println!(
+                                "[participant_id {}] Failed to stop recording {}",
+                                participant_id, error,
+                            );
+                        }
+                    }
+                });
             }
         }
     }

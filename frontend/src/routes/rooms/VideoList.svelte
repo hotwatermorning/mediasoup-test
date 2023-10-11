@@ -109,9 +109,19 @@
     }
   };
 
+  const startRecording = async () => {
+    mgr?.startRecording(new Date().valueOf().toString());
+  };
+
+  const stopRecording = async () => {
+    mgr?.stopRecording();
+  };
+
 </script>
 
 <div class="layout">
+  <button on:click={startRecording}>録画開始</button>
+  <button on:click={stopRecording}>録画停止</button>
   <div class={getVideoLayoutStyle(participants.length)}>
     <div class="video-wrapper">
       <div class="dummy">
@@ -122,7 +132,7 @@
               id="preview-send"
               muted
               use:onInitSelfVideo_
-              poster={"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg?x11217"}
+              poster={"/poster.svg"}
             />
             <div class="overlay">
               <div class="video-controls">
@@ -153,7 +163,7 @@
             <figcaption>{name}</figcaption>
             <video
               use:onBindParticipantElement_={id}
-              poster={"https://peach.blender.org/wp-content/uploads/title_anouncement.jpg?x11217"}
+              poster={"/poster.svg"}
             />
           </figure>
         </div>
@@ -219,7 +229,7 @@
   }
 
   .video-wrapper {
-    max-width: 1200px;
+    max-width: 800px;
     width: 100%;
     height: auto;
   }

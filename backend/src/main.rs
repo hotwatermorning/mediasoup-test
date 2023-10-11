@@ -3,13 +3,13 @@ use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
 use mediasoup::prelude::*;
 use serde::Deserialize;
-use std::env;
 use std::net::IpAddr;
-use std::str::FromStr;
 
 mod participant;
+mod recording;
 mod room;
 mod rooms_registry;
+mod util;
 
 // use participant::ParticipantConnection;
 // use room::RoomId;
@@ -60,18 +60,6 @@ async fn ws_index(
     }
 }
 
-fn get_env<T: FromStr>(name: &str) -> Option<T>
-where
-    T::Err: std::fmt::Debug,
-{
-    let v = env::var(name);
-    let Ok(v) = v else {
-        return None;
-    };
-
-    Some(v.parse::<T>().expect(&format!("{} is invalid.", name)))
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::from_filename(".env.local").ok();
@@ -79,8 +67,8 @@ async fn main() -> std::io::Result<()> {
 
     env_logger::init();
 
-    let addr = get_env::<IpAddr>("LISTEN_IP").unwrap();
-    let port = get_env::<u16>("PORT").unwrap();
+    let addr = util::get_env::<IpAddr>("LISTEN_IP").unwrap();
+    let port = util::get_env::<u16>("PORT").unwrap();
 
     // We will reuse the same worker manager across all connections, this is more than enough for
     // this use case
@@ -88,7 +76,7 @@ async fn main() -> std::io::Result<()> {
     // Rooms registry will hold all the active rooms
     let rooms_registry = Data::new(rooms_registry::RoomsRegistry::default());
 
-    println!("Listening on {}:{}", addr, port);
+    log::info!("Listening on {}:{}", addr, port);
 
     HttpServer::new(move || {
         App::new()

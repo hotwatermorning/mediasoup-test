@@ -5,6 +5,7 @@
   export let onClose: () => void;
   export let showCloseButton = false;
   export let closeWhenClickingOutside = true;
+  export let closeWhenEscapeKeyPressed = true;
   let dialog: HTMLDialogElement;
   let contents: HTMLDivElement;
 
@@ -17,13 +18,19 @@
     onClose();
   };
 
+  const onCancel = (ev: Event & { currentTarget: EventTarget & HTMLDialogElement; }) => {
+    if(closeWhenEscapeKeyPressed == false) {
+      ev.preventDefault();
+    }
+  };
+
   onMount(() => {
     dialog.showModal();
   });
 </script>
 
 <svelte:body on:click={(ev) => closeWhenClickingOutside && onClick(ev)} />
-<dialog class="dialog-box" bind:this={dialog} on:close={onClose}>
+<dialog class="dialog-box" bind:this={dialog} on:close={onClose} on:cancel={onCancel}>
   <div class="dialog-contents" bind:this={contents}>
     <slot />
     {#if showCloseButton}

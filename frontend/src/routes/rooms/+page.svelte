@@ -15,6 +15,7 @@
         onClose={() => {}}
         showCloseButton={false}
         closeWhenClickingOutside={false}
+        closeWhenEscapeKeyPressed={false}
       >
         <SetNameDialog />
       </Dialog>

@@ -1,47 +1,14 @@
 version: "3.5"
 services:
-  coturn:
-    build:
-      context: ./turn-server/coturn
-      dockerfile: ./docker/coturn/debian/Dockerfile
-    restart: always
-    volumes:
-      - type: bind
-        source: "./turn-server/turnserver.conf"
-        target: "/home/turn-server/turnserver.conf"
-        read_only: true
-      - type: bind
-        source: "./${COTURN_CERT_PEM:-./turn-server/dummy-cert.pem}"
-        target: "/usr/local/etc/turn_server_cert.pem"
-        read_only: true
-      - type: bind
-        source: "./${COTURN_PKEY_PEM:-./turn-server/dummy-pkey.pem}"
-        target: "/usr/local/etc/turn_server_pkey.pem"
-        read_only: true
-      - "./turn-server/turndb-dir:/usr/local/var/db"
-    network_mode: host
-    command: ["--log-file=stdout", "-c", "/home/turn-server/turnserver.conf"]
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    volumes:
-      - type: bind
-        source: "./backend"
-        target: "/home/backend"
-        read_only: false
     ports:
       - "10010:10010"
-    entrypoint: ["tail", "-F", "/dev/null"]
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    volumes:
-      - type: bind
-        source: "./frontend"
-        target: "/home/frontend"
-        read_only: false
     ports:
-      - "10020:10020"
-    entrypoint: ["tail", "-F", "/dev/null"]
+      - "10020:3000"

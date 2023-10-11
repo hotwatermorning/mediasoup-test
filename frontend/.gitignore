@@ -26,3 +26,4 @@ dist-ssr
 # 各開発者のローカル環境で使用する環境変数の設定ファイル
 .env.dev_local
 .svelte-kit
+build

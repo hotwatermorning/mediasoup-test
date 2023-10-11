@@ -1,4 +1,5 @@
 use crate::participant::ParticipantId;
+use crate::recording::Recorder;
 use event_listener_primitives::{Bag, BagOnce, HandlerId};
 use mediasoup::prelude::*;
 use mediasoup::worker::{WorkerLogLevel, WorkerLogTag};
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::num::{NonZeroU32, NonZeroU8};
+use std::ops::DerefMut;
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
 
@@ -45,11 +47,14 @@ struct Client {
     producers: Vec<Producer>,
 }
 
+// Room 構造体がメンバを非公開にして Arc で複数スレッド対応できるようにするための
+// 内部的な構造体
 struct Inner {
     id: RoomId,
     router: Router,
     handlers: Handlers,
     clients: Mutex<HashMap<ParticipantId, Client>>,
+    recorder: Mutex<Option<Recorder>>,
 }
 
 impl fmt::Debug for Inner {
@@ -122,6 +127,7 @@ impl Room {
                 router,
                 handlers: Handlers::default(),
                 clients: Mutex::default(),
+                recorder: None.into(),
             }),
         })
     }
@@ -164,7 +170,7 @@ impl Room {
     pub fn remove_participant(&self, participant_id: &ParticipantId) {
         let client = self.inner.clients.lock().remove(participant_id);
         let Some(client) = client else {
-          return;
+            return;
         };
 
         for producer in client.producers {
@@ -221,6 +227,54 @@ impl Room {
         WeakRoom {
             inner: Arc::downgrade(&self.inner),
         }
+    }
+
+    pub async fn start_recording(
+        &mut self,
+        participant_id: &ParticipantId,
+        output_name: &str,
+    ) -> Result<(), String> {
+        let mut clients = self.inner.clients.lock();
+        let found = clients.get_mut(participant_id);
+
+        let Some(client) = found else {
+            return Err("Invalid participant is specified.".to_owned());
+        };
+
+        let audio_producer = client
+            .producers
+            .iter()
+            .find(|p| p.kind() == MediaKind::Audio);
+        let video_producer = client
+            .producers
+            .iter()
+            .find(|p| p.kind() == MediaKind::Video);
+
+        log::debug!(
+            "recording target: {:?}, {:?}.",
+            audio_producer,
+            video_producer
+        );
+        let mut new_recorder = Recorder::new(self.router(), audio_producer, video_producer).await?;
+
+        new_recorder.start_recording(output_name).await?;
+        log::debug!("recording started.");
+
+        std::mem::drop(clients);
+
+        let mut recorder = self.inner.recorder.lock();
+        recorder.insert(new_recorder);
+
+        Ok(())
+    }
+
+    pub async fn stop_recording(&mut self) -> Result<(), String> {
+        let mut recorder = self.inner.recorder.lock();
+        if let Some(r) = recorder.as_mut() {
+            r.stop_recording().await?;
+        }
+
+        Ok(())
     }
 }
 

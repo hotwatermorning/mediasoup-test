@@ -17,12 +17,8 @@
   <div class="layout">
     <h1>
       <div class="line1">
-        m<span class="small gradient">e</span>dia<span class="gradient"
-          >soup</span
-        >
+        video chat test
       </div>
-      <div class="padding">{" "}</div>
-      <div class="line2">video chat test</div>
     </h1>
     <div class="control-section">
       <p>新しいルームを作成して入室する</p>
@@ -57,25 +53,6 @@
     @media screen and (max-width: css-breakpoint-sp) {
       flex-direction: column;
     }
-  }
-
-  .padding {
-    white-space: pre;
-    @media screen and (max-width: css-breakpoint-sp) {
-      display: none;
-    }
-  }
-
-  .small {
-    font-size: 3rem;
-  }
-
-  .gradient {
-    background-image: linear-gradient(0deg, #1eb6e8 10%, #9335db 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-size: 100%;
   }
 
   .control-section {

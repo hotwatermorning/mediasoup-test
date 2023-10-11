@@ -93,13 +93,24 @@ interface ClientConsumerResume {
   id: ConsumerId;
 }
 
+interface ClientStartRecording {
+  action: 'StartRecording';
+  outputName: string;
+}
+
+interface ClientStopRecording {
+  action: 'StopRecording';
+}
+
 type ClientMessage =
   ClientInit |
   ClientConnectProducerTransport |
   ClientProduce |
   ClientConnectConsumerTransport |
   ClientConsume |
-  ClientConsumerResume;
+  ClientConsumerResume |
+  ClientStartRecording |
+  ClientStopRecording;
 
 export type ParticipantInfo = {
   id: string;
@@ -151,6 +162,7 @@ export class VideoChatManager {
   private updateTrigger: () => void;
   private _isCameraEnabled = true;
   private _isMicEnabled = true;
+  private _send: (msg: ClientMessage) => void = (_) => {};
 
   public constructor(updateTriggerFunc: () => void) {
     this.updateTrigger = updateTriggerFunc;
@@ -158,6 +170,14 @@ export class VideoChatManager {
 
   public addSelfTrack(track: MediaStreamTrack): void {
     this.selfTracks.push(track);
+  }
+
+  public setSendFunction(func: (msg: ClientMessage) => void): void {
+    this._send = func;
+  }
+
+  public send(msg: ClientMessage): void {
+    this._send(msg);
   }
 
   public addTrack(
@@ -246,13 +266,26 @@ export class VideoChatManager {
       }
     }
   }
+
+  startRecording(outputName: string) {
+    this.send({
+      action: "StartRecording",
+      outputName,
+    });
+  }
+
+  stopRecording() {
+    this.send({
+      action: "StopRecording",
+    });
+  }
 }
 
 const getIceServers = (): RTCIceServer[] => {
   return [{
-    urls: (import.meta.env.VITE_TURN_URLS as string).split(","),
-    username: import.meta.env.VITE_TURN_USERNAME,
-    credential: import.meta.env.VITE_TURN_CREDENTIAL,
+    urls: (import.meta.env.VITE_TURN_URLS ?? "").split(","),
+    username: import.meta.env.VITE_TURN_USERNAME ?? "",
+    credential: import.meta.env.VITE_TURN_CREDENTIAL ?? "",
   }];
 }
 
@@ -276,9 +309,9 @@ export async function init(
 
   const ws = new WebSocket(wsUrl.toString());
 
-  function send(message: ClientMessage) {
+  mgr.setSendFunction((message: ClientMessage) => {
     ws.send(JSON.stringify(message));
-  }
+  });
 
   const device = new Device();
   let producerTransport: Transport | undefined;
@@ -304,7 +337,7 @@ export async function init(
         });
 
         // Send client-side initialization message back right away
-        send({
+        mgr.send({
           action: 'Init',
           name: name,
           rtpCapabilities: device.rtpCapabilities
@@ -322,7 +355,7 @@ export async function init(
         producerTransport
           .on('connect', ({ dtlsParameters }, success) => {
             // Send request to establish producer transport connection
-            send({
+            mgr.send({
               action: 'ConnectProducerTransport',
               dtlsParameters
             });
@@ -336,7 +369,7 @@ export async function init(
           .on('produce', ({ kind, rtpParameters }, success) => {
             // Once connection is established, send request to produce
             // audio or video track
-            send({
+            mgr.send({
               action: 'Produce',
               kind,
               rtpParameters
@@ -378,7 +411,7 @@ export async function init(
         consumerTransport
           .on('connect', ({ dtlsParameters }, success) => {
             // Send request to establish consumer transport connection
-            send({
+            mgr.send({
               action: 'ConnectConsumerTransport',
               dtlsParameters
             });
@@ -394,7 +427,7 @@ export async function init(
       case 'ProducerAdded': {
         await new Promise((resolve) => {
           // Send request to consume producer
-          send({
+          mgr.send({
             action: 'Consume',
             producerId: message.producerId
           });
@@ -412,7 +445,7 @@ export async function init(
             // Consumer needs to be resumed after being created in
             // paused state (see official documentation about why:
             // https://mediasoup.org/documentation/v3/mediasoup/api/#transport-consume)
-            send({
+            mgr.send({
               action: 'ConsumerResume',
               id: consumer.id as ConsumerId
             });

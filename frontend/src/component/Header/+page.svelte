@@ -4,7 +4,7 @@
 
 <div class="layout">
   <a class="logo" href="/">
-    m<span class="small gradient">e</span>dia<span class="gradient">soup</span> video chat test
+    video chat test
   </a>
 </div>
 

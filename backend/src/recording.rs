@@ -294,7 +294,7 @@ a=rtpmap:125 H264/90000
         Ok(())
     }
 
-    pub fn stop_ffmpeg(&mut self) -> Result<(), String> {
+    pub fn stop_recording_process(&mut self) -> Result<(), String> {
         let proc = std::mem::replace(&mut self.process, None);
 
         log::info!("thread started.");
@@ -319,7 +319,7 @@ a=rtpmap:125 H264/90000
             return Ok(());
         }
 
-        self.stop_ffmpeg();
+        self.stop_recording_process();
         let filename = self.filename.clone();
 
         let src_path = format!("./recordings/{}_tmp.mp4", &filename);

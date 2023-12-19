@@ -112,17 +112,25 @@
     }
   };
 
+  let isRecording = false;
   const startRecording = async () => {
     mgr?.startRecording(new Date().valueOf().toString());
+    isRecording = true;
   };
 
   const stopRecording = async () => {
     mgr?.stopRecording();
+    isRecording = false;
   };
 
 </script>
 
 <div class="layout">
+  <div class="recording-controls">
+    <span>Recording: </span>
+    <button on:click={startRecording} disabled={isRecording}>Start</button>
+    <button on:click={stopRecording} disabled={!isRecording}>Stop</button>
+  </div>
   <div class={getVideoLayoutStyle(participants.length)}>
     <div class="video-wrapper">
       <div class="dummy">
@@ -180,6 +188,13 @@
     align-items: center;
     width: 100%;
     height: 100%;
+  }
+
+  .recording-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #FFF;
   }
 
   .video-layout-for-1 {

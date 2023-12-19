@@ -70,8 +70,8 @@ impl ParticipantConnection {
         // this at a different time and/or in different order.
         let mut transport_options =
             WebRtcTransportOptions::new(TransportListenIps::new(ListenIp {
-                ip: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                announced_ip: Some(IpAddr::V4(Ipv4Addr::new(133, 242, 144, 214))),
+                ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                announced_ip: Some(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))),
             }));
         transport_options.enable_tcp = true;
         transport_options.prefer_udp = true;

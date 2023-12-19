@@ -1,12 +1,15 @@
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Write;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
-use std::num::NonZeroU32;
-use std::num::NonZeroU8;
 use std::process::Child;
+use std::process::ChildStderr;
 use std::process::Stdio;
+use std::thread;
+use std::time;
 
+use crate::room::media_codecs;
 use crate::util::*;
 use mediasoup::plain_transport::*;
 use mediasoup::prelude::*;
@@ -20,8 +23,10 @@ pub struct Recorder {
     pub video_transport: Option<PlainTransport>,
     pub audio_consumer: Option<Consumer>,
     pub video_consumer: Option<Consumer>,
-    pub ffmpeg_process: Option<Child>,
+    pub process: Option<Child>,
+    pub reader: Option<BufReader<ChildStderr>>,
     pub is_recording: bool,
+    pub filename: String,
 }
 
 impl Recorder {
@@ -69,14 +74,8 @@ impl Recorder {
             let mut cap = RtpCapabilities::default();
 
             cap.header_extensions = src_cap.header_extensions.clone();
-            let codec = RtpCodecCapability::Audio {
-                mime_type: MimeTypeAudio::Opus,
-                preferred_payload_type: Some(111),
-                clock_rate: NonZeroU32::new(48000).unwrap(),
-                channels: NonZeroU8::new(2).unwrap(),
-                parameters: Default::default(),
-                rtcp_feedback: Default::default(),
-            };
+
+            let codec = media_codecs()[0].clone();
             cap.codecs.push(codec);
 
             let mut consume_options = ConsumerOptions::new(ap.id(), cap);
@@ -105,6 +104,24 @@ impl Recorder {
                 .await
                 .map_err(|error| format!("Failed to create video transport: {error}"))?;
 
+            // transport.enable_trace_event(vec![TransportTraceEventType::Probation]);
+            // transport.on_trace(Arc::new(|ev: &TransportTraceEventData| match ev {
+            //     TransportTraceEventData::Probation {
+            //         timestamp,
+            //         direction,
+            //         info,
+            //     } => {
+            //         log::debug!("Probation: {:?}", &info);
+            //     }
+            //     TransportTraceEventData::Bwe {
+            //         timestamp,
+            //         direction,
+            //         info,
+            //     } => {
+            //         log::debug!("Bwe: {:?}", &info);
+            //     }
+            // }));
+
             let remote_params = PlainTransportRemoteParameters {
                 ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
                 port: Some(get_env::<u16>("VIDEO_RECORDING_PORT_RTP").expect("should be defined")),
@@ -128,13 +145,8 @@ impl Recorder {
             let mut cap = RtpCapabilities::default();
 
             cap.header_extensions = src_cap.header_extensions.clone();
-            let codec = RtpCodecCapability::Video {
-                mime_type: MimeTypeVideo::Vp8,
-                preferred_payload_type: Some(96),
-                clock_rate: NonZeroU32::new(90000).unwrap(),
-                parameters: Default::default(),
-                rtcp_feedback: Default::default(),
-            };
+
+            let codec = media_codecs()[1].clone();
             cap.codecs.push(codec);
 
             let mut consume_options = ConsumerOptions::new(vp.id(), cap);
@@ -153,7 +165,8 @@ impl Recorder {
     }
 
     pub async fn start_recording(&mut self, output_name: &str) -> Result<(), String> {
-        // self.start_recording_process(output_name).await?;
+        self.start_recording_process(&format!("{}_tmp", output_name))
+            .await?;
 
         if let Some(c) = self.audio_consumer.as_ref() {
             c.resume()
@@ -172,158 +185,112 @@ impl Recorder {
         }
 
         self.is_recording = true;
+        self.filename = output_name.to_string();
 
         Ok(())
     }
 
-    //     fn get_sdp_string(kind: MediaKind, params: RtpParameters) -> String {
-    //       let codec = params.codecs.get(0);
-    //       let Some(codec) = codec else {
-    //         return "".to_owned();
-    //       };
-    //
-    //       match codec {
-    //         RtpCodecParameters::Audio { mime_type, payload_type, clock_rate, channels, parameters, rtcp_feedback } => {
-    //           format!("\nm=audio {} RTP/AVPF {}}\n\
-    //             a=rtcp:{}\n\
-    //             a=rtpmap:{} {videoCodecInfo.codecName}/{videoCodecInfo.clockRate}\n\
-    //             a=rtpmap:111 opus/48000/2",
-    //             get_env::<u16>("AUDIO_RECORDING_PORT_RTP").unwrap(),
-    //             payload_type,
-    //             get_env::<u16>("AUDIO_RECORDING_PORT_RTP").unwrap(),
-    //             payload_type,
-    //
-    //              3).as_str();
-    //           }
-    //         RtpCodecParameters::Video { mime_type, payload_type, clock_rate, parameters, rtcp_feedback } => {
-    //           format!("\nm=video {} RTP/AVPF 96\n\
-    //             a=rtcp:{}\n\
-    //             a=rtpmap:96 VP8/90000",
-    //             1, 2).as_str();
-    //           }
-    //       }
-    //     //   return {
-    //     //     payloadType: rtpParameters.codecs[0].payloadType,
-    //     //     codecName: rtpParameters.codecs[0].mimeType.replace(`${kind}/`, ''),
-    //     //     clockRate: rtpParameters.codecs[0].clockRate,
-    //     //     channels: kind === 'audio' ? rtpParameters.codecs[0].channels : undefined
-    //     //   };
-    //     }
-    //
-    //     fn create_sdp(audio_rtp: Option<RtpParameters>, video_rtp: Option<RtpParameters>) -> String {
-    //       let mut sdp = format!("data:application/sdp;charset=UTF-8,v=0\n\
-    //         o=- 0 0 IN IP4 127.0.0.1\n\
-    //         s=-\n\
-    //         c=IN IP4 127.0.0.1\n\
-    //         t=0 0\n");
-    //
-    //       if let Some(r) = audio_rtp {
-    //         sdp += format!("\nm=audio {} RTP/AVPF {}}\n\
-    //           a=rtcp:{}\n\
-    //           a=rtpmap:111 opus/48000/2\n\
-    //           a=fmtp:111 minptime=10;useinbandfec=1",
-    //           get_env::<u16>("AUDIO_RECORDING_PORT_RTP").unwrap(),
-    //           r, 3).as_str();
-    //       }
-    //
-    //       if let Some(r) = video_rtp {
-    //         sdp += format!("\nm=video {} RTP/AVPF 96\n\
-    //           a=rtcp:{}\n\
-    //           a=rtpmap:96 VP8/90000",
-    //           1, 2).as_str();
-    //       }
-    //
-    //       sdp
-    //     };
-
     async fn start_recording_process(&mut self, output_name: &str) -> Result<(), String> {
         let cmd_program = "ffmpeg";
-        let cmd_input_path = "./profiles/input-h264.sdp";
+        let sdp = "./profiles/input-h264.sdp";
 
         let cmd_output_path = format!("./recordings/{}.mp4", output_name);
 
-        let cmd_format = vec!["-f", "webm", "-flags", "+global_header"];
-        // let cmd_format = vec!["-f", "mp4", "-strict", "experimental"];
-
-        let mut cmd_codec = Vec::<&str>::new();
-
-        if self.audio_transport.is_some() {
-            cmd_codec.extend(["-map", "0:a:0", "-c:a", "copy"]);
-        }
-        if self.video_transport.is_some() {
-            cmd_codec.extend(["-map", "0:v:0", "-c:v", "copy"]);
-
-            // // "-strict experimental" is required to allow storing
-            // // OPUS audio into MP4 container
-            // cmdFormat = "-f mp4 -strict experimental";
-        }
-
-        // let sdp = create_sdp(self.audio_consumer.map(|c| c.rtp_parameters()), self.video_consumer.map(|c| c.rtp_parameters()));
-        let sdp = "./profiles/input-vp8.sdp";
+        let cmd_format = vec!["-f", "mp4", "-strict", "experimental"];
 
         // Run process
         let cmd_args = [
             vec![
-                "-nostdin",
                 "-protocol_whitelist",
                 "file,rtp,udp",
-                "-loglevel",
-                "debug",
-                // "-analyzeduration",
-                // "5M",
-                // "-probesize",
-                // "5M",
+                "-probesize",
+                "50M",
                 "-fflags",
                 "+genpts",
                 "-i",
                 sdp,
             ],
-            cmd_codec,
             cmd_format,
             vec!["-y", cmd_output_path.as_ref()],
         ]
         .concat();
 
-        log::info!("spawn ffmpeg");
+        log::info!("spawn ffmpeg: {:?}", &cmd_program);
 
-        let proc = Command::new(cmd_program)
+        let mut proc = Command::new(cmd_program)
             .args(cmd_args)
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::piped())
             .spawn()
             .map_err(|error| format!("Failed to consume audio transport: {error}"))?;
 
         log::info!("get ffmpeg handle");
 
-        //         let stderr = proc.stderr.take().expect("Failed to take stdout");
-        //
-        //         log::info!("take stderr");
-        //
-        //         let mut r = BufReader::new(stderr);
-        //
-        //         log::info!("get buf reader");
-        //
-        //         loop {
-        //             log::info!("get ffmpeg output");
-        //             let mut line = String::new();
-        //             let result = r.read_line(&mut line);
-        //             if let Err(e) = result {
-        //                 return Err(format!("Failed to read line: {e}"));
-        //             }
-        //
-        //             if let Ok(0) = result {
-        //                 return Err("FFmpeg is quit".to_owned());
-        //             }
-        //
-        //             if line.starts_with("ffmpeg version") {
-        //                 break;
-        //             }
-        //         }
-        //
-        //         log::debug!("ffmpeg has been started.");
-        //
-        //         std::mem::drop(r);
-        //         proc.stderr = Some(stderr);
-        self.ffmpeg_process = Some(proc);
+        let stderr = proc
+            .stderr
+            .take()
+            .ok_or("Failed to take stdout".to_owned())?;
+        log::info!("take stderr");
+
+        let mut r = BufReader::with_capacity(10000000, stderr);
+
+        log::info!("get buf reader");
+
+        loop {
+            log::info!("get ffmpeg output");
+            let mut line = String::new();
+            let result = r.read_line(&mut line);
+            if let Err(e) = result {
+                return Err(format!("Failed to read line: {e}"));
+            }
+
+            if let Ok(0) = result {
+                return Err("FFmpeg is quit".to_owned());
+            }
+
+            log::debug!("line: {}", &line);
+            if line.starts_with("ffmpeg version") {
+                break;
+            }
+        }
+
+        thread::spawn(move || {
+            log::info!("read lines.");
+            loop {
+                let mut buf = String::new();
+                let result = r.read_line(&mut buf);
+                if result.is_err() || result.unwrap_or(1) == 0 {
+                    break;
+                }
+
+                log::info!("{}", &buf);
+            }
+        });
+
+        log::debug!("ffmpeg has been started.");
+
+        self.process = Some(proc);
+        // self.reader = Some(r);
+        Ok(())
+    }
+
+    pub fn stop_ffmpeg(&mut self) -> Result<(), String> {
+        let proc = std::mem::replace(&mut self.process, None);
+
+        log::info!("thread started.");
+        let Some(mut c) = proc else {
+            return Err("proc is none".to_owned());
+        };
+
+        if let Some(stream) = c.stdin.as_mut() {
+            stream.write(b"q\n");
+            stream.flush();
+        }
+
+        let _ = c
+            .wait()
+            .map_err(|e| format!("FFmpeg failed to exit: {e}"))?;
+
         Ok(())
     }
 
@@ -331,6 +298,13 @@ impl Recorder {
         if self.is_recording == false {
             return Ok(());
         }
+
+        self.stop_ffmpeg();
+        let filename = self.filename.clone();
+
+        let src_path = format!("./recordings/{}_tmp.mp4", &filename);
+        let dest_path = format!("./recordings/{}.mp4", &filename);
+        let _ = std::fs::rename(src_path, dest_path);
 
         if let Some(c) = self.audio_consumer.as_ref() {
             c.pause()
@@ -342,16 +316,6 @@ impl Recorder {
             c.pause()
                 .await
                 .map_err(|e| "Failed to pause video consumer: {e}".to_owned())?;
-        }
-
-        if let Some(c) = self.ffmpeg_process.as_mut() {
-            let mut kill = Command::new("kill")
-                .args(["-s", "SIGINT", &c.id().to_string()])
-                .spawn()
-                .map_err(|e| "Failed to spawn kill command: {e}".to_owned())?;
-
-            kill.wait()
-                .map_err(|e| "Failed to kill ffmpeg: {e}".to_owned())?;
         }
 
         Ok(())

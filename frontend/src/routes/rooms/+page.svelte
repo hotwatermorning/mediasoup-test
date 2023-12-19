@@ -2,7 +2,6 @@
   import { Dialog, Header } from "~/component";
   import { getClientSettingContext } from "~/context/ClientSettingProvider.svelte";
   import SetNameDialog from "./JoinSettingDialog.svelte";
-  import { beforeNavigate } from "$app/navigation";
   import VideoList from "./VideoList.svelte";
   const { clientSettingStore, isValidSetting } = getClientSettingContext();
 </script>

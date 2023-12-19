@@ -4,11 +4,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    network_mode: host
     restart: always
+    ports:
+      - 3010:3010
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    network_mode: host
+    ports:
+      - 3000:3000
     restart: always

@@ -4,18 +4,20 @@ use std::io::Write;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::process::Child;
-use std::process::ChildStderr;
 use std::process::Stdio;
+use std::sync::Mutex;
 use std::thread;
-use std::time;
 
 use crate::room::media_codecs;
-use crate::util::*;
 use mediasoup::plain_transport::*;
 use mediasoup::prelude::*;
 use mediasoup::rtp_parameters::RtpCodecCapabilityFinalized;
 
 use std::process::Command;
+
+static RECORDING_PORT_MIN: u16 = 6000;
+static RECORDING_PORT_MAX: u16 = 7000;
+static RECORDING_PORT: Mutex<u16> = Mutex::new(RECORDING_PORT_MIN);
 
 #[derive(Default, Debug)]
 pub struct Recorder {
@@ -24,9 +26,10 @@ pub struct Recorder {
     pub audio_consumer: Option<Consumer>,
     pub video_consumer: Option<Consumer>,
     pub process: Option<Child>,
-    pub reader: Option<BufReader<ChildStderr>>,
     pub is_recording: bool,
     pub filename: String,
+    pub sdp_filename: String,
+    pub port_number: u16,
 }
 
 impl Recorder {
@@ -36,6 +39,17 @@ impl Recorder {
         video_producer: Option<&Producer>,
     ) -> Result<Self, String> {
         let mut tmp_self = Recorder::default();
+
+        let mut rp_guard = RECORDING_PORT.lock().expect("lock mutex");
+        let port_number = *rp_guard;
+        *rp_guard = if port_number >= RECORDING_PORT_MAX {
+            RECORDING_PORT_MIN
+        } else {
+            port_number + 4
+        };
+        std::mem::drop(rp_guard);
+
+        tmp_self.port_number = port_number;
 
         // audio
         if let Some(ap) = audio_producer {
@@ -53,10 +67,8 @@ impl Recorder {
 
             let remote_params = PlainTransportRemoteParameters {
                 ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
-                port: Some(get_env::<u16>("AUDIO_RECORDING_PORT_RTP").expect("should be defined")),
-                rtcp_port: Some(
-                    get_env::<u16>("AUDIO_RECORDING_PORT_RTCP").expect("should be defined"),
-                ),
+                port: Some(port_number),
+                rtcp_port: Some(port_number + 1),
                 srtp_parameters: None,
             };
 
@@ -104,30 +116,10 @@ impl Recorder {
                 .await
                 .map_err(|error| format!("Failed to create video transport: {error}"))?;
 
-            // transport.enable_trace_event(vec![TransportTraceEventType::Probation]);
-            // transport.on_trace(Arc::new(|ev: &TransportTraceEventData| match ev {
-            //     TransportTraceEventData::Probation {
-            //         timestamp,
-            //         direction,
-            //         info,
-            //     } => {
-            //         log::debug!("Probation: {:?}", &info);
-            //     }
-            //     TransportTraceEventData::Bwe {
-            //         timestamp,
-            //         direction,
-            //         info,
-            //     } => {
-            //         log::debug!("Bwe: {:?}", &info);
-            //     }
-            // }));
-
             let remote_params = PlainTransportRemoteParameters {
                 ip: Some(IpAddr::V4(Ipv4Addr::LOCALHOST)),
-                port: Some(get_env::<u16>("VIDEO_RECORDING_PORT_RTP").expect("should be defined")),
-                rtcp_port: Some(
-                    get_env::<u16>("VIDEO_RECORDING_PORT_RTCP").expect("should be defined"),
-                ),
+                port: Some(port_number + 2),
+                rtcp_port: Some(port_number + 3),
                 srtp_parameters: None,
             };
 
@@ -165,8 +157,7 @@ impl Recorder {
     }
 
     pub async fn start_recording(&mut self, output_name: &str) -> Result<(), String> {
-        self.start_recording_process(&format!("{}_tmp", output_name))
-            .await?;
+        self.start_recording_process(output_name).await?;
 
         if let Some(c) = self.audio_consumer.as_ref() {
             c.resume()
@@ -190,13 +181,42 @@ impl Recorder {
         Ok(())
     }
 
+    fn create_sdp_file(&mut self, sdp_filename: &str, port_number: u16) -> Result<(), String> {
+        let text = format!(
+            r#"
+v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=-
+c=IN IP4 127.0.0.1
+t=0 0
+m=audio {} RTP/AVPF 111
+a=rtcp:{}
+a=rtpmap:111 opus/48000/2
+a=fmtp:111 minptime=10;useinbandfec=1
+m=video {} RTP/AVPF 125
+a=rtcp:{}
+a=rtpmap:125 H264/90000
+"#,
+            port_number,
+            port_number + 1,
+            port_number + 2,
+            port_number + 3
+        );
+
+        let _ = std::fs::write(sdp_filename, text);
+
+        Ok(())
+    }
+
     async fn start_recording_process(&mut self, output_name: &str) -> Result<(), String> {
+        let sdp_filename = format!("./profiles/{}.sdp", output_name);
+
+        self.create_sdp_file(&sdp_filename, self.port_number)?;
         let cmd_program = "ffmpeg";
-        let sdp = "./profiles/input-h264.sdp";
 
-        let cmd_output_path = format!("./recordings/{}.mp4", output_name);
+        let output_path = format!("./recordings/{}_tmp.mp4", output_name);
 
-        let cmd_format = vec!["-f", "mp4", "-strict", "experimental"];
+        let video_format = vec!["-f", "mp4", "-strict", "experimental"];
 
         // Run process
         let cmd_args = [
@@ -208,10 +228,10 @@ impl Recorder {
                 "-fflags",
                 "+genpts",
                 "-i",
-                sdp,
+                &sdp_filename,
             ],
-            cmd_format,
-            vec!["-y", cmd_output_path.as_ref()],
+            video_format,
+            vec!["-y", output_path.as_ref()],
         ]
         .concat();
 
@@ -270,7 +290,7 @@ impl Recorder {
         log::debug!("ffmpeg has been started.");
 
         self.process = Some(proc);
-        // self.reader = Some(r);
+        self.sdp_filename = sdp_filename;
         Ok(())
     }
 
@@ -305,6 +325,7 @@ impl Recorder {
         let src_path = format!("./recordings/{}_tmp.mp4", &filename);
         let dest_path = format!("./recordings/{}.mp4", &filename);
         let _ = std::fs::rename(src_path, dest_path);
+        let _ = std::fs::remove_file(&self.sdp_filename);
 
         if let Some(c) = self.audio_consumer.as_ref() {
             c.pause()

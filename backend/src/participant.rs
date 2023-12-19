@@ -411,7 +411,7 @@ impl Handler<ClientMessage> for ParticipantConnection {
                 let participant_id = self.id;
                 let mut room = self.room.clone();
                 actix::spawn(async move {
-                    match room.stop_recording().await {
+                    match room.stop_recording(&participant_id).await {
                         Ok(_) => {
                             println!(
                                 "[participant_id {}] Successfully stopped recording",

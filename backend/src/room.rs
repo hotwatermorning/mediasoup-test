@@ -40,10 +40,11 @@ struct Handlers {
     close: BagOnce<Box<dyn FnOnce() + Send>>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 struct Client {
     name: String,
     producers: Vec<Producer>,
+    recorder: Recorder,
 }
 
 // Room 構造体がメンバを非公開にして Arc で複数スレッド対応できるようにするための
@@ -53,7 +54,6 @@ struct Inner {
     router: Router,
     handlers: Handlers,
     clients: Mutex<HashMap<ParticipantId, Client>>,
-    recorder: Mutex<Option<Recorder>>,
 }
 
 impl fmt::Debug for Inner {
@@ -127,7 +127,6 @@ impl Room {
                 router,
                 handlers: Handlers::default(),
                 clients: Mutex::default(),
-                recorder: None.into(),
             }),
         })
     }
@@ -256,23 +255,25 @@ impl Room {
             video_producer
         );
         let mut new_recorder = Recorder::new(self.router(), audio_producer, video_producer).await?;
-
         new_recorder.start_recording(output_name).await?;
+        client.recorder = new_recorder;
+
         log::debug!("recording started.");
 
         std::mem::drop(clients);
 
-        let mut recorder = self.inner.recorder.lock();
-        recorder.insert(new_recorder);
-
         Ok(())
     }
 
-    pub async fn stop_recording(&mut self) -> Result<(), String> {
-        let mut recorder = self.inner.recorder.lock();
-        if let Some(r) = recorder.as_mut() {
-            r.stop_recording().await?;
-        }
+    pub async fn stop_recording(&mut self, participant_id: &ParticipantId) -> Result<(), String> {
+        let mut clients = self.inner.clients.lock();
+        let found = clients.get_mut(participant_id);
+
+        let Some(client) = found else {
+            return Err("Invalid participant is specified.".to_owned());
+        };
+
+        client.recorder.stop_recording().await?;
 
         Ok(())
     }

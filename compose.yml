@@ -6,6 +6,9 @@ services:
       dockerfile: Dockerfile
     restart: always
     network_mode: host
+    volumes:
+      - "./backend/profiles:/app/profiles"
+      - "./backend/recordings:/app/recordings"
   frontend:
     build:
       context: ./frontend

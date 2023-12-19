@@ -15,8 +15,8 @@ use mediasoup::rtp_parameters::RtpCodecCapabilityFinalized;
 
 use std::process::Command;
 
-static RECORDING_PORT_MIN: u16 = 6000;
-static RECORDING_PORT_MAX: u16 = 7000;
+static RECORDING_PORT_MIN: u16 = 12000;
+static RECORDING_PORT_MAX: u16 = 13000;
 static RECORDING_PORT: Mutex<u16> = Mutex::new(RECORDING_PORT_MIN);
 
 #[derive(Default, Debug)]

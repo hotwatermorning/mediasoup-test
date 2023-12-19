@@ -1,4 +1,5 @@
-FROM rust:1.73.0-buster
+FROM rust:1.74.1-buster
+
 RUN USER=root cargo new --bin app
 WORKDIR /app
 
@@ -16,4 +17,5 @@ RUN touch ./src/main.rs
 RUN cargo build
 
 COPY .env.docker .env
+EXPOSE 3010
 ENTRYPOINT ["./target/debug/mediasoup-test-backend"]

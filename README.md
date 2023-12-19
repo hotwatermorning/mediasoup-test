@@ -9,5 +9,5 @@
 以上の設定を行って docker コンテナを起動する。
 
 ```sh
-docker-compose up -d
+docker compose up -d
 ```
